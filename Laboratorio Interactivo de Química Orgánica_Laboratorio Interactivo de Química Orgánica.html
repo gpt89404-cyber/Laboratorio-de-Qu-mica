@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laboratorio Interactivo de Química Orgánica · Grado 11.º</title>
+  <!-- Three.js para Modelos Moleculares 3D -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <style>
+    :root {
+      --bg-main: #f8fafc;
+      --bg-card: #ffffff;
+      --primary: #1e40af;
+      --primary-hover: #1d4ed8;
+      --accent: #0284c7;
+      --text-dark: #0f172a;
+      --text-muted: #475569;
+      --border: #cbd5e1;
+      --success-bg: #f0fdf4;
+      --success-text: #166534;
+      --error-bg: #fef2f2;
+      --error-text: #991b1b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background-color: var(--bg-main); color: var(--text-dark); min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* Header Nav Bar */
+    header.app-bar {
+      background: linear-gradient(135deg, #0f172a, #1e3a8a);
+      color: white;
+      padding: 14px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+    }
+    .brand { display: flex; align-items: center; gap: 14px; font-weight: 800; font-size: 1.2rem; }
+    .menu-btn {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: white;
+      font-size: 1.4rem;
+      cursor: pointer;
+      padding: 6px 12px;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+    .menu-btn:hover { background: rgba(255, 255, 255, 0.25); }
+
+    /* Drawer Sidebar Menu */
+    .drawer-overlay {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.65); opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 200; backdrop-filter: blur(3px);
+    }
+    .drawer-overlay.active { opacity: 1; pointer-events: auto; }
+    .drawer {
+      position: fixed; top: 0; left: -320px; width: 320px; height: 100%; background: #0f172a; color: white;
+      transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 201; padding: 24px 20px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto;
+    }
+    .drawer.active { left: 0; }
+    .drawer-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 16px; }
+    .drawer-header h3 { font-size: 1.2rem; color: #f8fafc; font-weight: 700; }
+    .drawer-menu { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .drawer-menu button, .drawer-menu a {
+      width: 100%; text-align: left; background: none; border: none; color: #cbd5e1; padding: 12px 16px; font-size: 0.95rem; font-weight: 600; cursor: pointer; border-radius: 10px; display: flex; align-items: center; gap: 12px; transition: all 0.2s; text-decoration: none;
+    }
+    .drawer-menu button:hover, .drawer-menu button.active, .drawer-menu a:hover { background: var(--primary); color: white; }
+    .menu-category { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8; margin: 12px 0 4px 12px; font-weight: 800; }
+
+    /* Main Container Views */
+    main.container { flex: 1; max-width: 900px; width: 100%; margin: 28px auto; padding: 0 16px; }
+    .view-section { display: none; }
+    .view-section.active { display: block; animation: fadeIn 0.25s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Cards Structure */
+    .card { background: var(--bg-card); border-radius: 20px; border: 1px solid var(--border); padding: 28px; box-shadow: 0 10px 30px rgba(30, 58, 138, 0.05); margin-bottom: 24px; }
+    .hero-card { background: linear-gradient(135deg, #1e3a8a, #1d4ed8, #0369a1); color: white; border: none; }
+    .hero-card h1 { color: white; }
+    .hero-card p { color: #dbeafe; }
+
+    h1 { font-size: 1.8rem; color: var(--text-dark); margin-bottom: 10px; font-weight: 800; }
+    h2 { font-size: 1.35rem; color: #1e293b; margin-bottom: 14px; font-weight: 700; }
+    p { line-height: 1.65; color: var(--text-muted); margin-bottom: 14px; font-size: 0.98rem; }
+
+    /* Buttons */
+    .btn { cursor: pointer; padding: 12px 24px; border-radius: 12px; font-weight: 700; border: none; font-size: 0.95rem; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+    .btn-secondary:hover { background: #e2e8f0; }
+
+    /* Chemical Display */
+    .visual-panel {
+      background: #f8fbff; border: 1px solid #dbeafe; border-radius: 16px; padding: 24px; text-align: center; margin: 18px 0; overflow-x: auto;
+    }
+    .chem-display { font-family: "Cambria Math", Georgia, serif; font-size: clamp(1.2rem, 4vw, 1.65rem); font-weight: 600; color: #0f172a; white-space: nowrap; }
+    .chem-sub { font-size: 0.88rem; color: var(--text-muted); margin-top: 8px; }
+
+    /* Form Controls */
+    select, input[type="text"] {
+      width: 100%; padding: 13px 15px; border: 2px solid var(--border); border-radius: 12px; font-size: 1rem; margin-top: 6px; margin-bottom: 18px; outline: none; background: #ffffff;
+    }
+    select:focus, input[type="text"]:focus { border-color: var(--primary); }
+
+    /* Progress & Feedback */
+    .progress-bar { height: 10px; background: #e2e8f0; border-radius: 20px; overflow: hidden; margin: 12px 0 20px; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); width: 0%; transition: width 0.3s ease; }
+    .feedback { padding: 16px; border-radius: 12px; margin-top: 16px; font-size: 0.95rem; line-height: 1.55; }
+    .feedback.good { background: var(--success-bg); color: var(--success-text); border: 1px solid #bbf7d0; }
+    .feedback.bad { background: var(--error-bg); color: var(--error-text); border: 1px solid #fecaca; }
+
+    .explain-box { background: #fff7ed; border-left: 4px solid #ea580c; padding: 14px 16px; border-radius: 10px; margin-top: 12px; color: #7c2d12; font-size: 0.92rem; }
+    .explain-box h4 { margin-bottom: 6px; color: #9a3412; font-size: 1rem; }
+
+    /* Leaderboard Table */
+    .board-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; }
+    .board-item:nth-child(even) { background: #f8fafc; }
+
+    footer { text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.85rem; margin-top: auto; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="app-bar">
+    <div class="brand">
+      <button class="menu-btn" onclick="toggleMenu()">☰</button>
+      <span>🧪 Laboratorio de Química Orgánica</span>
+    </div>
+    <span style="font-size: 0.8rem; background: rgba(255,255,255,0.15); padding: 5px 14px; border-radius: 20px; font-weight: 700;">Grado 11.º</span>
+  </header>
+
+  <!-- Side Navigation Drawer -->
+  <div class="drawer-overlay" id="drawerOverlay" onclick="toggleMenu()"></div>
+  <nav class="drawer" id="drawer">
+    <div class="drawer-header">
+      <h3>Menú de Navegación</h3>
+      <button class="menu-btn" onclick="toggleMenu()">✕</button>
+    </div>
+    <ul class="drawer-menu">
+      <li><button id="nav-home" class="active" onclick="navigate('home')">🏠 Inicio General</button></li>
+      
+      <div class="menu-category">Módulos de Práctica</div>
+      <li><button id="nav-alkanes" onclick="startTopicDirect('alkanes')">⛽ Alcanos</button></li>
+      <li><button id="nav-alkenes" onclick="startTopicDirect('alkenes')">⚡ Alquenos</button></li>
+      <li><button id="nav-alkynes" onclick="startTopicDirect('alkynes')">🔗 Alquinos</button></li>
+      <li><button id="nav-benzenes" onclick="startTopicDirect('benzenes')">🛡️ Bencenos y Aromáticos</button></li>
+      <li><button id="nav-alcohols" onclick="startTopicDirect('alcohols')">⚗️ Alcoholes</button></li>
+      <li><button id="nav-carbonyls" onclick="startTopicDirect('carbonyls')">🧪 Aldehídos y Cetonas</button></li>
+
+      <div class="menu-category">Herramientas</div>
+      <li><button id="nav-models" onclick="navigate('models')">🧊 Modelos 3D Moleculares</button></li>
+      <li><button id="nav-theory" onclick="navigate('theory')">📚 Teoría y Reglas IUPAC</button></li>
+      <li><button id="nav-results" onclick="navigate('results')">🏆 Tablero de Puntajes</button></li>
+    </ul>
+  </nav>
+
+  <!-- Main Container -->
+  <main class="container">
+
+    <!-- VIEW 1: HOME -->
+    <section id="view-home" class="view-section active">
+      <div class="card hero-card">
+        <span style="font-weight: 800; font-size: 0.8rem; letter-spacing: 0.12em; color: #bae6fd;">PLATAFORMA EDUCATIVA INTERACTIVA</span>
+        <h1 style="margin-top: 8px;">Laboratorio de Química Orgánica</h1>
+        <p>Bienvenido al entorno de experimentación y práctica académica. Selecciona un módulo en el menú desplegable lateral para iniciar ejercicios técnicos de nomenclatura, estudiar modelos moleculares en 3D o consultar el tablero de puntajes en tiempo real.</p>
+      </div>
+
+      <div class="card">
+        <h2>Acceso Rápido a Módulos</h2>
+        <p>Haz clic en cualquiera de las categorías para comenzar tu práctica:</p>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 16px;">
+          <button class="btn btn-secondary" style="justify-content: flex-start; padding: 16px;" onclick="startTopicDirect('alkanes')">⛽ Práctica de Alcanos</button>
+          <button class="btn btn-secondary" style="justify-content: flex-start; padding: 16px;" onclick="startTopicDirect('alkenes')">⚡ Práctica de Alquenos</button>
+          <button class="btn btn-secondary" style="justify-content: flex-start; padding: 16px;" onclick="startTopicDirect('alkynes')">🔗 Práctica de Alquinos</button>
+          <button class="btn btn-secondary" style="justify-content: flex-start; padding: 16px;" onclick="startTopicDirect('benzenes')">🛡️ Práctica de Bencenos</button>
+          <button class="btn btn-secondary" style="justify-content: flex-start; padding: 16px;" onclick="startTopicDirect('alcohols')">⚗️ Práctica de Alcoholes</button>
+          <button class="btn btn-secondary" style="justify-content: flex-start; padding: 16px;" onclick="startTopicDirect('carbonyls')">🧪 Aldehídos y Cetonas</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 2: PRACTICE -->
+    <section id="view-practice" class="view-section">
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: 800; color: var(--primary); font-size: 0.85rem; text-transform: uppercase;" id="sectionLabel">Ejercicio</span>
+          <span style="font-weight: 700; color: var(--text-muted); font-size: 0.9rem;" id="counter">1 / 10</span>
+        </div>
+        
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressBar"></div>
+        </div>
+
+        <h2 id="prompt" style="font-size: 1.25rem;">Cargando ejercicio...</h2>
+
+        <div class="visual-panel">
+          <div id="visualContent"></div>
+          <div class="chem-sub" id="visualCaption"></div>
+        </div>
+
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 6px; font-weight: 700;" id="attemptCounter">Intentos restantes: 2</div>
+        <input type="text" id="answerInput" placeholder="Escribe tu respuesta técnica aquí..." autocomplete="off">
+
+        <div style="display: flex; gap: 10px;">
+          <button class="btn btn-primary" id="checkBtn" onclick="checkAnswer()">Comprobar Respuesta</button>
+          <button class="btn btn-primary" id="nextBtn" style="display: none;" onclick="nextQuestion()">Siguiente Ejercicio →</button>
+        </div>
+
+        <div id="feedback"></div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: 3D MODELS -->
+    <section id="view-models" class="view-section">
+      <div class="card">
+        <h1>🧊 Visualizador y Constructor 3D de Moléculas</h1>
+        <p>Explora la geometría espacial de las moléculas orgánicas o activa el modo de personalización para construir tus propias estructuras utilizando todos los elementos de la tabla periódica.</p>
+        
+        <div style="display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;">
+          <button class="btn btn-primary" id="btnToggleMode" onclick="toggleCustomizerMode()">🛠️ Activar Modo de Personalización</button>
+        </div>
+
+        <div id="presetToolbar" style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;">
+          <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="loadMolecularModel('alkane')">Alcanos</button>
+          <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="loadMolecularModel('alkenes')">Alquenos</button>
+          <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="loadMolecularModel('alkynes')">Alquinos</button>
+          <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="loadMolecularModel('benzene')">Benceno</button>
+          <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="loadMolecularModel('alcohol')">Alcoholes</button>
+          <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;" onclick="loadMolecularModel('carbonyl')">Carbonilo</button>
+        </div>
+
+        <!-- Periodic Table Element Selector for Customizer -->
+        <div id="builderToolbar" style="display: none; flex-direction: column; gap: 10px; margin-bottom: 12px; background: #f1f5f9; padding: 14px; border-radius: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <span style="font-size: 0.95rem; font-weight: 700; color: #1e293b;">Átomo Seleccionado: <span id="activeAtomLabel" style="color: var(--primary); font-size: 1.1rem;">Carbono (C) [Valencia: 4]</span></span>
+            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.85rem; background:#fee2e2; color:#991b1b;" onclick="clearBuilder()">Limpiar Lienzo</button>
+          </div>
+          
+          <input type="text" id="elementSearch" placeholder="🔍 Buscar elemento por nombre o símbolo (ej. Nitrógeno, Cl, O)..." oninput="filterPeriodicTable(this.value)" style="margin: 0; padding: 10px 14px; font-size: 0.9rem;">
+
+          <div id="periodicCategories" style="max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;">
+            <!-- Categorized collapsible element tabs populated dynamically -->
+          </div>
+        </div>
+
+        <div id="canvas3dContainer" style="width: 100%; height: 380px; background: #0f172a; border-radius: 14px; position: relative; overflow: hidden; cursor: grab; user-select: none;">
+          <div id="modelInfoOverlay" style="position: absolute; bottom: 12px; left: 16px; color: #94a3b8; font-size: 0.85rem; pointer-events: none; background: rgba(15,23,42,0.85); padding: 6px 12px; border-radius: 6px; z-index: 10;">Arrastra con el mouse o dedo para rotar | Suelta para auto-rotación</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: THEORY -->
+    <section id="view-theory" class="view-section">
+      <div class="card">
+        <h1>Marco Teórico Extendido y Reglas IUPAC para Grado 11</h1>
+        <p>Esta guía académica ha sido diseñada con la máxima profundidad y rigor pedagógico para que cualquier estudiante, docente o entusiasta de la ciencia pueda comprender de manera clara, detallada y exhaustiva los fundamentos de la química orgánica, las reglas oficiales de nomenclatura de la IUPAC (Unión Internacional de Química Pura y Aplicada), y las propiedades fisicoquímicas que definen a cada familia de hidrocarburos y compuestos oxigenados.</p>
+        
+        <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 24px;">
+          
+          <!-- Alcanos -->
+          <details style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 14px; padding: 18px 22px;" open>
+            <summary style="font-size: 1.2rem; font-weight: 700; color: var(--primary); cursor: pointer; outline: none;">1. Alcanos (Hidrocarburos Alifáticos Saturados)</summary>
+            <div style="margin-top: 14px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
+              <p>Los alcanos son hidrocarburos en los cuales todos los enlaces entre los átomos de carbono son enlaces simples de tipo sigma (C-C). Se les conoce históricamente como parafinas debido a su baja afinidad química en condiciones normales. Su fórmula molecular general responde a la expresión matemática CnH2n+2, donde 'n' representa el número total de átomos de carbono presentes en la cadena principal.</p>
+              <p><strong>Estructura y Geometría Espacial:</strong> Cada átomo de carbono en un alcano presenta una hibridación orbital de tipo sp3, lo que genera una geometría tetraédrica alrededor de cada carbono con ángulos de enlace aproximados de 109.5 grados. Esto permite la libre rotación alrededor de los enlaces carbono-carbono, dando lugar a diferentes conformaciones espaciales.</p>
+              <p><strong>Reglas de Nomenclatura IUPAC Exhaustivas:</strong></p>
+              <ul style="margin-left: 20px; color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;">
+                <li><strong>Selección de la cadena principal:</strong> Se identifica y selecciona la cadena continua de átomos de carbono más larga posible. Si existen dos o más cadenas con la misma longitud máxima, se selecciona aquella que posea el mayor número de sustituyentes o ramificaciones.</li>
+                <li><strong>Numeración de la cadena:</strong> Se numera la cadena principal comenzando por el extremo que se encuentre más cercano a un sustituyente (alquilo ramificado), con el fin de asignar los números localizadores más bajos posibles a las ramificaciones.</li>
+                <li><strong>Identificación y orden de sustituyentes:</strong> Los grupos alquilo laterales (como metil, etil, propil, isopropil, ter-butil) se nombran cambiando el sufijo -ano por -il. Se ordenan estrictamente en orden alfabético al redactar el nombre completo, precedidos por sus números localizadores y prefijos numerales (di-, tri-, tetra-) si se repiten.</li>
+                <li><strong>Ejemplo detallado:</strong> La estructura CH3-CH(CH3)-CH2-CH3 se denomina sistemáticamente 2-metilbutano, ya que la cadena principal posee 4 carbonos (butano) y en el carbono 2 se localiza un grupo metilo.</li>
+              </ul>
+              <p style="margin-top: 10px;"><strong>Propiedades Fisicoquímicas:</strong> Debido a que los enlaces carbono-hidrógeno y carbono-carbono son prácticamente apolares, los alcanos son insolubles en agua pero solubles en solventes orgánicos apolares como el hexano o el benceno. Sus puntos de fusión y ebullición aumentan de manera proporcional al incremento de su masa molar y al tamaño de su cadena carbonada debido a las fuerzas de dispersión de London.</p>
+            </div>
+          </details>
+
+          <!-- Alquenos -->
+          <details style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 14px; padding: 18px 22px;">
+            <summary style="font-size: 1.2rem; font-weight: 700; color: var(--primary); cursor: pointer; outline: none;">2. Alquenos (Hidrocarburos Insaturados con Doble Enlace)</summary>
+            <div style="margin-top: 14px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
+              <p>Los alquenos, también llamados antiguamente olefinas, son hidrocarburos alifáticos que se caracterizan por poseer al menos un doble enlace carbono-carbono (C=C) en su estructura molecular. Su fórmula molecular general para cadenas abiertas con un único doble enlace es CnH2n.</p>
+              <p><strong>Estructura y Hibridación:</strong> Los átomos de carbono que forman parte del doble enlace presentan una hibridación de tipo sp2, adoptando una geometría trigonal plana con ángulos de enlace de aproximadamente 120 grados. El doble enlace está compuesto por un enlace sigma (fuerte y frontal) y un enlace pi (formado por el traslape lateral de orbitales p puros), el cual es rico en electrones y constituye el centro activo de reactividad de la molécula.</p>
+              <p><strong>Reglas de Nomenclatura IUPAC Exhaustivas:</strong></p>
+              <ul style="margin-left: 20px; color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;">
+                <li><strong>Cadena principal:</strong> Debe ser la cadena continua más larga que obligatoriamente incluya el doble enlace carbono-carbono, aun cuando exista una cadena de carbonos más larga que no lo contenga.</li>
+                <li><strong>Numeración prioritaria:</strong> La numeración de la cadena principal se inicia siempre por el extremo más cercano al doble enlace, sin importar dónde se localicen las ramificaciones o sustituyentes alquílicos. El doble enlace tiene absoluta prioridad en la numeración.</li>
+                <li><strong>Uso del sufijo:</strong> Se utiliza la terminación <strong>-eno</strong>, precedida por el número localizador más bajo que corresponda al primer carbono del doble enlace. Ejemplo: CH2=CH-CH2-CH3 se nombra 1-buteno o but-1-eno.</li>
+                <li><strong>Isomería geométrica (Cis-Trans / E-Z):</strong> Debido a la rigidez del doble enlace que impide la libre rotación, los alquenos pueden presentar isomería geométrica cuando cada carbono del doble enlace está unido a dos átomos o grupos diferentes. Se utiliza el prefijo <em>cis-</em> si los grupos idénticos están en el mismo lado del plano, o <em>trans-</em> si se encuentran en lados opuestos.</li>
+              </ul>
+              <p style="margin-top: 10px;"><strong>Propiedades Químicas:</strong> Debido a la presencia del enlace pi (pi), los alquenos experimentan con facilidad reacciones de adición electrofílica (como la hidrogenación catalítica, la halogenación y la hidratación para formar alcoholes).</p>
+            </div>
+          </details>
+
+          <!-- Alquinos -->
+          <details style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 14px; padding: 18px 22px;">
+            <summary style="font-size: 1.2rem; font-weight: 700; color: var(--primary); cursor: pointer; outline: none;">3. Alquinos (Hidrocarburos con Triple Enlace)</summary>
+            <div style="margin-top: 14px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
+              <p>Los alquinos son hidrocarburos insaturados que contienen al menos un triple enlace carbono-carbono (C ≡ C). Su fórmula molecular general para sistemas acíclicos con un triple enlace es CnH2n-2.</p>
+              <p><strong>Estructura y Geometría:</strong> Los carbonos involucrados en el triple enlace presentan una hibridación de tipo sp, lo que confiere a la molécula una geometría lineal con un ángulo de enlace exacto de 180 grados. El triple enlace consta de un enlace sigma central y dos enlaces pi perpendiculares entre sí.</p>
+              <p><strong>Reglas de Nomenclatura IUPAC Exhaustivas:</strong></p>
+              <ul style="margin-left: 20px; color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;">
+                <li>Se selecciona la cadena carbonada continua más larga que contenga el triple enlace.</li>
+                <li>La numeración se efectúa desde el extremo más cercano al triple enlace, dándole preferencia absoluta sobre las cadenas ramificadas o los dobles enlaces si coexisten ambos (en cuyo caso se denominan en-inos, numerando de modo que el conjunto de insaturaciones reciba los números más bajos posibles).</li>
+                <li>Se utiliza el sufijo <strong>-ino</strong>. Ejemplo: CH ≡ C-CH2-CH3 se denomina 1-butino.</li>
+              </ul>
+              <p style="margin-top: 10px;"><strong>Propiedades Características:</strong> Los hidrógenos unidos a carbonos con triple enlace terminal (alquinos terminales) exhiben un carácter ligeramente ácido debido a la alta proporción de carácter s en el orbital sp, permitiendo formar sales metálicas llamadas acetruros o alquinuros.</p>
+            </div>
+          </details>
+
+          <!-- Bencenos -->
+          <details style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 14px; padding: 18px 22px;">
+            <summary style="font-size: 1.2rem; font-weight: 700; color: var(--primary); cursor: pointer; outline: none;">4. Bencenos e Hidrocarburos Aromáticos</summary>
+            <div style="margin-top: 14px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
+              <p>El benceno (C6H6) y sus derivados constituyen la familia de los hidrocarburos aromáticos. Se caracterizan por poseer un anillo plano de seis átomos de carbono con enlaces sencillos y dobles alternados que experimentan una completa deslocalización electrónica (resonancia).</p>
+              <p><strong>Aromaticidad y Estabilidad:</strong> La estructura del benceno no corresponde a un ciclo con dobles enlaces estáticos, sino a un híbrido de resonancia donde los electrones pi están distribuidos uniformemente en forma de nubes electrónicas por encima y por debajo del anillo plano hexagonal, confiriéndole una estabilidad termodinámica excepcional (cumpliendo la regla de Hückel de 4n+2 electrones pi deslocalizados).</p>
+              <p><strong>Nomenclatura IUPAC de Derivados Aromáticos:</strong></p>
+              <ul style="margin-left: 20px; color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;">
+                <li><strong>Monosustituidos:</strong> Se nombra el grupo sustituyente seguido de la palabra "benceno" (ejemplo: metilbenceno o tolueno, nitrobenceno, clorobenceno).</li>
+                <li><strong>Disustituidos:</strong> Cuando el anillo bencénico posee dos sustituyentes, la posición relativa de estos se indica mediante numeración (1,2; 1,3; 1,4) o empleando los prefijos tradicionales: <em>orto-</em> (posición 1,2), <em>meta-</em> (posición 1,3) y <em>para-</em> (posición 1,4).</li>
+              </ul>
+            </div>
+          </details>
+
+          <!-- Alcoholes -->
+          <details style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 14px; padding: 18px 22px;">
+            <summary style="font-size: 1.2rem; font-weight: 700; color: var(--primary); cursor: pointer; outline: none;">5. Alcoholes (Compuestos Orgánicos Oxigenados)</summary>
+            <div style="margin-top: 14px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
+              <p>Los alcoholes son compuestos orgánicos caracterizados por la presencia del grupo funcional hidroxilo (-OH) enlazado covalentemente a un átomo de carbono saturado con hibridación sp3. Su fórmula general se representa como R-OH.</p>
+              <p><strong>Clasificación Estructural:</strong> Dependiendo del grado de sustitución del carbono al cual se halla unido el grupo hidroxilo, los alcoholes se clasifican en:</p>
+              <ul style="margin-left: 20px; color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;">
+                <li><strong>Primarios:</strong> El carbono del -OH está unido a un solo carbono adicional (ej. etanol).</li>
+                <li><strong>Secundarios:</strong> El carbono del -OH está unido a dos átomos de carbono.</li>
+                <li><strong>Terciarios:</strong> El carbono del -OH está unido a tres átomos de carbono.</li>
+              </ul>
+              <p><strong>Nomenclatura IUPAC Exhaustiva:</strong> Se selecciona la cadena principal más larga que contenga al carbono unido al grupo -OH. La cadena se numera otorgando al localizador del grupo hidroxilo el número más bajo posible (tiene prioridad sobre dobles enlaces, triples enlaces y halógenos). Se reemplaza la terminación -ano del alcano correspondiente por el sufijo <strong>-ol</strong>. Ejemplo: CH3-CH2-OH es el etanol.</p>
+              <p style="margin-top: 10px;"><strong>Propiedades Fisicoquímicas:</strong> El enlace O-H es fuertemente polar, lo que permite a las moléculas de alcohol formar extensas redes de puentes de hidrógeno intermoleculares. Esto explica sus puntos de ebullición marcadamente elevados en comparación con los hidrocarburos de peso molecular semejante y su excelente solubilidad en agua para alcoholes de cadena corta.</p>
+            </div>
+          </details>
+
+          <!-- Aldehídos y Cetonas -->
+          <details style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 14px; padding: 18px 22px;">
+            <summary style="font-size: 1.2rem; font-weight: 700; color: var(--primary); cursor: pointer; outline: none;">6. Aldehídos y Cetonas (Compuestos con Grupo Carbonilo)</summary>
+            <div style="margin-top: 14px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
+              <p>Ambos grupos de compuestos orgánicos comparten la presencia del grupo funcional carbonilo (C=O), el cual consiste en un átomo de carbono unido mediante un doble enlace a un átomo de oxígeno altamente electronegativo.</p>
+              <ul style="margin-left: 20px; color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;">
+                <li><strong>Aldehídos:</strong> El grupo carbonilo se encuentra localizado obligatoriamente en un carbono terminal de la cadena principal (representado como -CHO). En la nomenclatura IUPAC se emplea el sufijo <strong>-al</strong> (ejemplo: propanal).</li>
+                <li><strong>Cetonas:</strong> El grupo carbonilo se ubica en un carbono secundario o interno, situado entre dos grupos alquilo o arilo (R-CO-R'). En la nomenclatura IUPAC se utiliza el sufijo <strong>-ona</strong>, indicando mediante un número localizador la posición del carbono carbonílico cuando la cadena es de 5 o más carbonos (ejemplo: propanona o acetona).</li>
+              </ul>
+              <p style="margin-top: 10px;"><strong>Reactividad Química:</strong> El carbono carbonílico posee una carga parcial positiva considerable debido a la alta electronegatividad del oxígeno, lo que vuelve a estos compuestos sumamente susceptibles al ataque de reactivos nucleofílicos y a procesos de oxidación-reducción.</p>
+            </div>
+          </details>
+
+        </div>
+
+        <button class="btn btn-primary" style="margin-top: 24px;" onclick="navigate('home')">Volver al Inicio</button>
+      </div>
+    </section>
+
+    <!-- VIEW 5: RESULTS -->
+    <section id="view-results" class="view-section">
+      <div class="card">
+        <h1>🏆 Tablero de Puntajes en Vivo</h1>
+        <div id="boardItemsContainer" style="margin-top: 16px;"></div>
+        <button class="btn btn-primary" style="margin-top: 20px;" onclick="navigate('home')">Volver al Inicio</button>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    Laboratorio Interactivo de Química Orgánica · Grado 11.º
+  </footer>
+
+  <script>
+    const BANK = [
+      { topic: "alkanes", ref: "Alcanos", prompt: "Escribe el nombre IUPAC de CH₃–CH₂–CH₂–CH₃.", answers: ["butano"], renderVal: "CH₃–CH₂–CH₂–CH₃" },
+      { topic: "alkenes", ref: "Alquenos", prompt: "Escribe el nombre IUPAC de CH₂=CH–CH₂–CH₃.", answers: ["1-buteno", "but-1-eno"], renderVal: "CH₂=CH–CH₂–CH₃" },
+      { topic: "alkynes", ref: "Alquinos", prompt: "Escribe el nombre IUPAC de CH≡C–CH₂–CH₃.", answers: ["1-butino", "but-1-ino"], renderVal: "CH≡C–CH₂–CH₃" },
+      { topic: "benzenes", ref: "Bencenos", prompt: "Escribe el nombre del hidrocarburo aromático C₆H₆.", answers: ["benceno"], renderVal: "C₆H₆" },
+      { topic: "alcohols", ref: "Alcoholes", prompt: "Escribe el nombre IUPAC de CH₃–CH₂–OH.", answers: ["etanol", "alcohol etilico"], renderVal: "CH₃–CH₂–OH" },
+      { topic: "carbonyls", ref: "Aldehídos", prompt: "Escribe el nombre IUPAC de CH₃–CH₂–CHO.", answers: ["propanal"], renderVal: "CH₃–CH₂–CHO" }
+    ];
+
+    let queue = [], pos = 0, points = 0, attemptsUsed = 0, currentStudent = "Estudiante";
+
+    function toggleMenu() {
+      const drawer = document.getElementById('drawer');
+      const overlay = document.getElementById('drawerOverlay');
+      if (drawer && overlay) {
+        drawer.classList.toggle('active');
+        overlay.classList.toggle('active');
+      }
+    }
+
+    function navigate(viewId) {
+      document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.drawer-menu button').forEach(el => el.classList.remove('active'));
+      
+      const targetView = document.getElementById(`view-${viewId}`);
+      const targetNav = document.getElementById(`nav-${viewId}`);
+      
+      if(targetView) targetView.classList.add('active');
+      if(targetNav) targetNav.classList.add('active');
+      
+      const drawer = document.getElementById('drawer');
+      const overlay = document.getElementById('drawerOverlay');
+      if (drawer) drawer.classList.remove('active');
+      if (overlay) overlay.classList.remove('active');
+      
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function shuffle(arr) {
+      let b = [...arr];
+      for (let i = b.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        [b[i], b[j]] = [b[j], b[i]];
+      }
+      return b;
+    }
+
+    function startTopicDirect(topicKey) {
+      currentStudent = prompt("Ingresa tu nombre para el registro:", "Estudiante") || "Estudiante";
+      let filtered = BANK.filter(q => q.topic === topicKey);
+      if (!filtered.length) filtered = BANK;
+      queue = shuffle(filtered);
+      pos = 0; points = 0;
+      navigate('practice');
+      renderQuestion();
+    }
+
+    function renderQuestion() {
+      attemptsUsed = 0;
+      const q = queue[pos];
+      document.getElementById('sectionLabel').innerText = q.ref;
+      document.getElementById('counter').innerText = `${pos + 1} / ${queue.length}`;
+      document.getElementById('progressBar').style.width = `${(pos / queue.length) * 100}%`;
+      document.getElementById('prompt').innerText = q.prompt;
+      document.getElementById('attemptCounter').innerText = 'Intentos restantes: 2';
+
+      const input = document.getElementById('answerInput');
+      input.value = ''; input.disabled = false;
+      document.getElementById('checkBtn').style.display = 'inline-block';
+      document.getElementById('nextBtn').style.display = 'none';
+      document.getElementById('feedback').className = '';
+      document.getElementById('feedback').innerHTML = '';
+      document.getElementById('visualContent').innerHTML = `<div class="chem-display">${q.renderVal}</div>`;
+    }
+
+    function checkAnswer() {
+      const raw = document.getElementById('answerInput').value.trim().toLowerCase();
+      const q = queue[pos];
+      const feedback = document.getElementById('feedback');
+      if (!raw) return;
+
+      const isCorrect = q.answers.some(a => a.toLowerCase() === raw);
+      if (isCorrect) {
+        points += 10;
+        feedback.className = 'feedback good';
+        feedback.innerText = '¡Correcto! Excelente análisis.';
+        document.getElementById('answerInput').disabled = true;
+        document.getElementById('checkBtn').style.display = 'none';
+        document.getElementById('nextBtn').style.display = 'inline-block';
+      } else {
+        attemptsUsed++;
+        if (attemptsUsed < 2) {
+          feedback.className = 'feedback bad';
+          feedback.innerText = 'Incorrecto. Te queda 1 intento.';
+        } else {
+          feedback.className = 'feedback bad';
+          feedback.innerText = 'Se agotaron los intentos. Puedes continuar.';
+          document.getElementById('answerInput').disabled = true;
+          document.getElementById('checkBtn').style.display = 'none';
+          document.getElementById('nextBtn').style.display = 'inline-block';
+        }
+      }
+    }
+
+    function nextQuestion() {
+      pos++;
+      if (pos < queue.length) renderQuestion();
+      else {
+        alert(`Práctica finalizada. Puntuación total: ${points} puntos.`);
+        navigate('home');
+      }
+    }
+
+    // Three.js Viewer Init
+    let scene, camera, renderer, molecularGroup;
+    let isDragging = false, previousPosition = { x: 0, y: 0 };
+    let viewerMode = 'preset';
+    let activeAtom = { symbol: 'C', name: 'Carbono', color: 0x334155, size: 0.65, maxValence: 4 };
+    let atomsList = []; 
+    let bondingPorts = [];
+    let raycaster, mouse;
+    let autoRotateTimer = null;
+
+    const PERIODIC_ELEMENTS = [
+      { category: "No Metales", elements: [
+        { symbol: "H", name: "Hidrógeno", color: 0x94a3b8, size: 0.35, val: 1 },
+        { symbol: "C", name: "Carbono", color: 0x334155, size: 0.65, val: 4 },
+        { symbol: "N", name: "Nitrógeno", color: 0x3b82f6, size: 0.6, val: 3 },
+        { symbol: "O", name: "Oxígeno", color: 0xef4444, size: 0.6, val: 2 },
+        { symbol: "P", name: "Fósforo", color: 0xf97316, size: 0.7, val: 3 },
+        { symbol: "S", name: "Azufre", color: 0xeab308, size: 0.7, val: 2 }
+      ]},
+      { category: "Halógenos", elements: [
+        { symbol: "F", name: "Flúor", color: 0x22c55e, size: 0.5, val: 1 },
+        { symbol: "Cl", name: "Cloro", color: 0x14b8a6, size: 0.55, val: 1 },
+        { symbol: "Br", name: "Bromo", color: 0x991b1b, size: 0.6, val: 1 },
+        { symbol: "I", name: "Yodo", color: 0x7e22ce, size: 0.65, val: 1 }
+      ]},
+      { category: "Gases Nobles", elements: [
+        { symbol: "He", name: "Helio", color: 0x06b6d4, size: 0.4, val: 0 },
+        { symbol: "Ne", name: "Neón", color: 0x0ea5e9, size: 0.45, val: 0 },
+        { symbol: "Ar", name: "Argón", color: 0x6366f1, size: 0.5, val: 0 }
+      ]},
+      { category: "Metales Alcalinos y Alcalinotérreos", elements: [
+        { symbol: "Li", name: "Litio", color: 0xd946ef, size: 0.7, val: 1 },
+        { symbol: "Na", name: "Sodio", color: 0xec4899, size: 0.75, val: 1 },
+        { symbol: "K", name: "Potasio", color: 0xf43f5e, size: 0.8, val: 1 },
+        { symbol: "Mg", name: "Magnesio", color: 0x84cc16, size: 0.7, val: 2 },
+        { symbol: "Ca", name: "Calcio", color: 0x10b981, size: 0.75, val: 2 }
+      ]}
+    ];
+
+    function init3D() {
+      const container = document.getElementById('canvas3dContainer');
+      if (!container || scene) return;
+
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+      camera.position.z = 14;
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      container.appendChild(renderer.domElement);
+
+      scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+      const light = new THREE.PointLight(0xffffff, 1.2);
+      light.position.set(10, 15, 15);
+      scene.add(light);
+
+      molecularGroup = new THREE.Group();
+      scene.add(molecularGroup);
+
+      raycaster = new THREE.Raycaster();
+      mouse = new THREE.Vector2();
+
+      // Eventos táctiles y de mouse para rotación aislada 360° del modelo
+      container.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        previousPosition = { x: e.clientX, y: e.clientY };
+        if (autoRotateTimer) clearTimeout(autoRotateTimer);
+        autoRotateTimer = null;
+      });
+
+      container.addEventListener('mousemove', (e) => {
+        if (!isDragging || !molecularGroup) return;
+        const deltaX = e.clientX - previousPosition.x;
+        const deltaY = e.clientY - previousPosition.y;
+        molecularGroup.rotation.y += deltaX * 0.01;
+        molecularGroup.rotation.x += deltaY * 0.01;
+        previousPosition = { x: e.clientX, y: e.clientY };
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          if (autoRotateTimer) clearTimeout(autoRotateTimer);
+          autoRotateTimer = setTimeout(() => {
+            autoRotateTimer = null;
+          }, 2000);
+        }
+      });
+
+      container.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+          e.preventDefault(); // Evita el scroll de la página al tocar el canvas
+          isDragging = true;
+          previousPosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+          if (autoRotateTimer) clearTimeout(autoRotateTimer);
+          autoRotateTimer = null;
+        }
+      }, { passive: false });
+
+      container.addEventListener('touchmove', (e) => {
+        if (!isDragging || !molecularGroup || e.touches.length !== 1) return;
+        e.preventDefault(); // Evita el scroll mientras arrastras el modelo
+        const deltaX = e.touches[0].clientX - previousPosition.x;
+        const deltaY = e.touches[0].clientY - previousPosition.y;
+        molecularGroup.rotation.y += deltaX * 0.01;
+        molecularGroup.rotation.x += deltaY * 0.01;
+        previousPosition = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }, { passive: false });
+
+      window.addEventListener('touchend', () => {
+        if (isDragging) {
+          isDragging = false;
+          if (autoRotateTimer) clearTimeout(autoRotateTimer);
+          autoRotateTimer = setTimeout(() => {
+            autoRotateTimer = null;
+          }, 2000);
+        }
+      });
+
+      container.onclick = (e) => {
+        if (viewerMode !== 'builder') return;
+        const rect = container.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / container.clientWidth) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / container.clientHeight) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const portIntersects = raycaster.intersectObjects(bondingPorts);
+        if (portIntersects.length > 0) {
+          const hitPort = portIntersects[0].object;
+          const parentObj = hitPort.userData.parentAtom;
+          
+          // Strict valence enforcement: Carbon max 4, Hydrogen max 1, Oxygen max 2, Nitrogen max 3, etc.
+          if (parentObj.userData.bondsCount < parentObj.userData.maxValence && activeAtom.maxValence > 0) {
+            spawnAtomAt(hitPort.position, parentObj);
+          } else {
+            alert(`El átomo de ${parentObj.userData.symbol} ya alcanzó su valencia máxima (${parentObj.userData.maxValence} enlaces).`);
+          }
+          return;
+        }
+
+        if (atomsList.length === 0) {
+          spawnAtomAt(new THREE.Vector3(0, 0, 0), null);
+        }
+      };
+
+      renderPeriodicTableCategories();
+      loadMolecularModel('alkane');
+      animate();
+    }
+
+    function renderPeriodicTableCategories(filterText = '') {
+      const container = document.getElementById('periodicCategories');
+      if (!container) return;
+      container.innerHTML = '';
+
+      PERIODIC_ELEMENTS.forEach(cat => {
+        const matched = cat.elements.filter(el => 
+          el.name.toLowerCase().includes(filterText.toLowerCase()) || 
+          el.symbol.toLowerCase().includes(filterText.toLowerCase())
+        );
+        if (matched.length === 0) return;
+
+        const details = document.createElement('details');
+        details.open = filterText.length > 0;
+        details.style.cssText = "background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 12px;";
+        
+        const summary = document.createElement('summary');
+        summary.style.cssText = "font-weight: 700; font-size: 0.88rem; cursor: pointer; color: #1e293b;";
+        summary.innerText = `${cat.category} (${matched.length})`;
+        details.appendChild(summary);
+
+        const grid = document.createElement('div');
+        grid.style.cssText = "display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px;";
+
+        matched.forEach(el => {
+          const btn = document.createElement('button');
+          btn.className = 'btn btn-secondary';
+          btn.style.cssText = "padding: 6px 10px; font-size: 0.8rem; border-radius: 6px; display: flex; align-items: center; gap: 4px;";
+          btn.innerHTML = `<span style="font-weight: 800; color: ${'#' + el.color.toString(16).padStart(6,'0')}">${el.symbol}</span> ${el.name}`;
+          btn.onclick = () => selectElement(el);
+          grid.appendChild(btn);
+        });
+
+        details.appendChild(grid);
+        container.appendChild(details);
+      });
+    }
+
+    function filterPeriodicTable(val) {
+      renderPeriodicTableCategories(val);
+    }
+
+    function selectElement(el) {
+      activeAtom = { symbol: el.symbol, name: el.name, color: el.color, size: el.size, maxValence: el.val };
+      document.getElementById('activeAtomLabel').innerText = `${el.name} (${el.symbol}) [Valencia: ${el.val}]`;
+    }
+
+    function spawnAtomAt(pos, parentAtom) {
+      const geometry = new THREE.SphereGeometry(activeAtom.size, 32, 32);
+      const material = new THREE.MeshPhongMaterial({ color: activeAtom.color });
+      const sphere = new THREE.Mesh(geometry, material);
+      sphere.position.copy(pos);
+      
+      sphere.userData = {
+        symbol: activeAtom.symbol,
+        maxValence: activeAtom.maxValence,
+        bondsCount: parentAtom ? 1 : 0
+      };
+
+      molecularGroup.add(sphere);
+      atomsList.push(sphere);
+
+      if (parentAtom) {
+        parentAtom.userData.bondsCount++;
+        const distance = parentAtom.position.distanceTo(sphere.position);
+        const cylGeo = new THREE.CylinderGeometry(0.12, 0.12, distance, 16);
+        const cylMat = new THREE.MeshPhongMaterial({ color: 0x94a3b8 });
+        const cylinder = new THREE.Mesh(cylGeo, cylMat);
+        cylinder.position.copy(parentAtom.position).add(sphere.position).multiplyScalar(0.5);
+        cylinder.lookAt(sphere.position);
+        cylinder.rotateX(Math.PI / 2);
+        molecularGroup.add(cylinder);
+      }
+
+      refreshAllPorts();
+      updateFormulaEstimation();
+    }
+
+    function refreshAllPorts() {
+      bondingPorts.forEach(p => molecularGroup.remove(p));
+      bondingPorts = [];
+
+      atomsList.forEach(atom => {
+        // Only generate connection ports if the atom has not exceeded its chemical valence
+        if (atom.userData.bondsCount >= atom.userData.maxValence) return;
+
+        // Number of available valence slots remaining
+        const availableValence = atom.userData.maxValence - atom.userData.bondsCount;
+        
+        // Directional offset vectors for tetrahedral / planar geometry
+        const possibleOffsets = [
+          new THREE.Vector3(1.3, 0, 0),
+          new THREE.Vector3(-1.3, 0, 0),
+          new THREE.Vector3(0, 1.3, 0),
+          new THREE.Vector3(0, -1.3, 0),
+          new THREE.Vector3(0, 0, 1.3),
+          new THREE.Vector3(0, 0, -1.3)
+        ];
+
+        let createdForThisAtom = 0;
+        possibleOffsets.forEach(offset => {
+          if (createdForThisAtom >= availableValence) return;
+          const portPos = atom.position.clone().add(offset);
+          const occupied = atomsList.some(a => a.position.distanceTo(portPos) < 1.0);
+          if (!occupied) {
+            const pGeo = new THREE.SphereGeometry(0.18, 16, 16);
+            const pMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.85 });
+            const port = new THREE.Mesh(pGeo, pMat);
+            port.position.copy(portPos);
+            port.userData = { parentAtom: atom };
+            molecularGroup.add(port);
+            bondingPorts.push(port);
+            createdForThisAtom++;
+          }
+        });
+      });
+    }
+
+    function updateFormulaEstimation() {
+      const overlay = document.getElementById('modelInfoOverlay');
+      const counts = {};
+      atomsList.forEach(a => {
+        counts[a.userData.symbol] = (counts[a.userData.symbol] || 0) + 1;
+      });
+      let summaryStr = Object.entries(counts).map(([k, v]) => `${k}:${v}`).join(' ');
+      overlay.innerText = `Átomos [ ${summaryStr} ] | Total: ${atomsList.length}`;
+    }
+
+    function clearBuilder() {
+      atomsList = [];
+      bondingPorts = [];
+      while(molecularGroup.children.length > 0) molecularGroup.remove(molecularGroup.children[0]);
+      spawnAtomAt(new THREE.Vector3(0,0,0), null);
+    }
+
+    function toggleCustomizerMode() {
+      viewerMode = viewerMode === 'preset' ? 'builder' : 'preset';
+      const btn = document.getElementById('btnToggleMode');
+      if (viewerMode === 'builder') {
+        btn.innerText = "👁️ Ver Modelos Preestablecidos";
+        document.getElementById('presetToolbar').style.display = 'none';
+        document.getElementById('builderToolbar').style.display = 'flex';
+        clearBuilder();
+      } else {
+        btn.innerText = "🛠️ Activar Modo de Personalización";
+        document.getElementById('presetToolbar').style.display = 'flex';
+        document.getElementById('builderToolbar').style.display = 'none';
+        loadMolecularModel('alkane');
+      }
+    }
+
+    function addBond(pos1, pos2) {
+      const distance = pos1.distanceTo(pos2);
+      const cylGeo = new THREE.CylinderGeometry(0.12, 0.12, distance, 16);
+      const cylMat = new THREE.MeshPhongMaterial({ color: 0x94a3b8 });
+      const cylinder = new THREE.Mesh(cylGeo, cylMat);
+      cylinder.position.copy(pos1).add(pos2).multiplyScalar(0.5);
+      cylinder.lookAt(pos2);
+      cylinder.rotateX(Math.PI / 2);
+      molecularGroup.add(cylinder);
+    }
+
+    function loadMolecularModel(type) {
+      if (!scene) init3D();
+      while(molecularGroup.children.length > 0) molecularGroup.remove(molecularGroup.children[0]);
+      atomsList = []; bondingPorts = [];
+
+      const cMat = new THREE.MeshPhongMaterial({color: 0x334155});
+      const hMat = new THREE.MeshPhongMaterial({color: 0x94a3b8});
+      const oMat = new THREE.MeshPhongMaterial({color: 0xef4444});
+
+      if (type === 'alkane') {
+        let prev = null;
+        for(let i=0; i<4; i++) {
+          const c = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), cMat);
+          c.position.set((i - 1.5) * 1.5, 0, 0);
+          molecularGroup.add(c);
+          if (prev) addBond(prev.position, c.position);
+          prev = c;
+        }
+        document.getElementById('modelInfoOverlay').innerText = "Modelo: Alcanos (Cadena Lineal Saturada - Butano)";
+      } else if (type === 'alkenes') {
+        const c1 = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), cMat);
+        c1.position.set(-1, 0, 0);
+        const c2 = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), cMat);
+        c2.position.set(1, 0, 0);
+        molecularGroup.add(c1, c2);
+        // Doble enlace explícito paralelo
+        addBond(c1.position.clone().add(new THREE.Vector3(0, 0.15, 0)), c2.position.clone().add(new THREE.Vector3(0, 0.15, 0)));
+        addBond(c1.position.clone().add(new THREE.Vector3(0, -0.15, 0)), c2.position.clone().add(new THREE.Vector3(0, -0.15, 0)));
+        document.getElementById('modelInfoOverlay').innerText = "Modelo: Alquenos (Doble enlace C=C)";
+      } else if (type === 'alkynes') {
+        const c1 = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), cMat);
+        c1.position.set(-1, 0, 0);
+        const c2 = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), cMat);
+        c2.position.set(1, 0, 0);
+        molecularGroup.add(c1, c2);
+        // Triple enlace explícito paralelo
+        addBond(c1.position, c2.position);
+        addBond(c1.position.clone().add(new THREE.Vector3(0, 0.22, 0)), c2.position.clone().add(new THREE.Vector3(0, 0.22, 0)));
+        addBond(c1.position.clone().add(new THREE.Vector3(0, -0.22, 0)), c2.position.clone().add(new THREE.Vector3(0, -0.22, 0)));
+        document.getElementById('modelInfoOverlay').innerText = "Modelo: Alquinos (Triple enlace C≡C)";
+      } else if (type === 'benzene') {
+        let carbons = [];
+        for(let i=0; i<6; i++) {
+          const angle = (i / 6) * Math.PI * 2;
+          const c = new THREE.Mesh(new THREE.SphereGeometry(0.6, 32, 32), cMat);
+          c.position.set(Math.cos(angle)*2, Math.sin(angle)*2, 0);
+          molecularGroup.add(c);
+          carbons.push(c);
+        }
+        for(let i=0; i<6; i++) {
+          addBond(carbons[i].position, carbons[(i+1)%6].position);
+        }
+        document.getElementById('modelInfoOverlay').innerText = "Modelo: Benceno (Anillo Aromático C₆H₆)";
+      } else if (type === 'alcohol') {
+        const c = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), cMat);
+        c.position.set(-1, 0, 0);
+        const o = new THREE.Mesh(new THREE.SphereGeometry(0.75, 32, 32), oMat);
+        o.position.set(1, 0, 0);
+        molecularGroup.add(c, o);
+        addBond(c.position, o.position);
+        document.getElementById('modelInfoOverlay').innerText = "Modelo: Alcoholes (Grupo Hidroxilo -OH)";
+      } else {
+        const c = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), cMat);
+        c.position.set(0, -1, 0);
+        const o = new THREE.Mesh(new THREE.SphereGeometry(0.75, 32, 32), oMat);
+        o.position.set(0, 1.2, 0);
+        molecularGroup.add(c, o);
+        addBond(c.position, o.position);
+        document.getElementById('modelInfoOverlay').innerText = "Modelo: Grupo Carbonilo C=O (Aldehídos y Cetonas)";
+      }
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (molecularGroup && viewerMode === 'preset' && !isDragging) {
+        molecularGroup.rotation.y += 0.005;
+      } else if (molecularGroup && viewerMode === 'builder' && !isDragging && autoRotateTimer === null) {
+        molecularGroup.rotation.y += 0.003;
+      }
+      if (renderer && scene && camera) renderer.render(scene, camera);
+    }
+
+    const oldNavigate = navigate;
+    navigate = function(v) {
+      oldNavigate(v);
+      if (v === 'models') setTimeout(init3D, 150);
+    };
+  </script>
+</body>
+</html>
